@@ -47,39 +47,63 @@ if (Meteor.isClient) {
       var currentUser = Meteor.userId();
 
       // Create variable for tasksView
-      //var text = $('[name="tasksView']).val();
+      var tasksView = $('[name="tasksView]').val();
 
       // set variable of current list to be unique ID of current view
       var currentList = this._id;
 
 
-      //var listName = $('[name=listName]').val();
+      var listName = $('[name=listName]').val();
  
       // Insert a task into the collection
-      Tasks.insert({
+     /* Tasks.insert({
         text: text,
         completed: false,
         createdAt: new Date(), // current time
         createdBy: currentUser,
         listId: currentList
-      });
+      }); */
  
       // Clear form
       event.target.text.value = "";
+
+      //console log test to see whats happening
+      console.log('something got inserted!');
+      
+
+      //Meteor Call to server
+      Meteor.call('addTask', text, currentList);
     }
   });
 
 
       Template.task.events({
     "click .toggle-checked": function () {
+      Meteor.call('setChecked', this._id, this.checked);
+
       // Set the checked property to the opposite of its current value
-      Tasks.update(this._id, {
+      /* Tasks.update(this._id, {
         $set: {checked: ! this.checked}
-      });
+      }); */ 
     },
+
     "click .delete": function () {
-      Tasks.remove(this._id);
+
+      Meteor.call('deleteTask', this._id);
+      /*Tasks.remove(this._id); */
     }
+
+/*
+    'keyup [name='text']': function(event) {
+        if(event.which == 13 || event.which == 27){
+        $(event.target).blur();
+    } else {
+        var documentId = this._id;
+        var todoItem = $(event.target).val();
+        Meteor.call('updateListItem', documentId, todoItem);
+    }
+    } */ 
+
   });
 
 
@@ -276,8 +300,8 @@ Tasks = new Mongo.Collection("tasks");
 Lists = new Mongo.Collection("lists");
 
 Router.configure ({
-  layoutTemplate: 'main',
-  loadingTemplate: 'loading'
+  layoutTemplate: 'main'
+  /* loadingTemplate: 'loading' */
 });
 
 Router.route('/', function () {
@@ -339,7 +363,7 @@ if (Meteor.isServer) {
 // data from list viewed 
   Meteor.publish('tasks', function(currentList) { 
     var currentUser = this.userId;
-    //var currentList = this.params._id;
+    var currentList = this._Id;
     return Tasks.find({ createdBy: currentUser, listId: currentList});
   });
 
@@ -347,20 +371,81 @@ if (Meteor.isServer) {
 
 // Inserting, Updating and Remove functions should be server side for security purposes
   Meteor.methods ({
+    // Create new list function 
     'createNewList': function(listName){
       var currentUser = Meteor.userId();
+
+            var listName = $('[name=listName]').val();
+
+              if (listName === "" ) {
+                function defaultName (currentUser) {
+                  var nextLetter = 'A';
+
+                  var nextName = 'List ' + nextLetter;
+
+                  while (Lists.findOne ({ name:nextName, createdBy: currentUser}))
+                    { 
+                      nextLetter = String.fromCharCode(nextLetter.charCodeAt(0) + 1);
+                      nextName = 'List ' + nextLetter;
+                    }
+
+                    return nextName;
+                }
+              }
+
+              check(listName, String);
 
       var data = {
         name: listName,
         createdBy: currentUser
       };
 
-      Lists.insert ({
-        name: listName,
-        createdBy: currentUser
-      });
 
-    }
+      if(!currentUser) {
+        throw new Meteor.error("not-logged-in", "you're not logged in");
+      }
+   
+      Lists.insert (data);
+    },
+
+
+
+    'addTask': function(text, currentList) {
+
+        var currentUser = Meteor.userId();
+        var currentList = this._id; 
+
+      // Create variable for tasksView
+      //var tasksView = $('[name="tasksView]').val();
+
+        Tasks.insert({
+        text: text,
+        completed: false,
+        createdAt: new Date(), // current time
+        createdBy: currentUser,
+        listId: currentList
+        });
+      },
+
+      deleteTask: function(taskId) {
+        Tasks.remove(taskId);
+      },
+
+      setChecked: function (taskId, setChecked) {
+        Tasks.update(taskId, {$set: {checked: setChecked} });
+      },
+
+      /* updateListItem: function(documentId, text) {
+        var currentUser = Meteor.userId();
+
+        var data = {
+          _id: documentId,
+          createdBy: currentUser
+        }
+
+        Tasks.update({data, {$set: {name:text}} )
+      }       */ 
+
   });
 
 }
